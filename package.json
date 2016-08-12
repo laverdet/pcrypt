@@ -1,0 +1,10 @@
+{
+	"name": "pcrypt",
+	"version": "1.0.0",
+	"main": "pcrypt.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/laverdet/pcrypt.git"
+	},
+	"private": true
+}
