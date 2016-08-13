@@ -85,6 +85,6 @@ module.exports = {
 			cipher8 = tmp;
 			cipher32 = new Int32Array(cipher8.buffer);
 		}
-		return Buffer.from(outputBuffer).slice(0, output8.length - output8[output8.length - 1]);
+		return new Buffer(outputBuffer, 0, output8.length - output8[output8.length - 1]);
 	}
 };
