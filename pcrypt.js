@@ -24,6 +24,20 @@ module.exports = {
 	 */
 	encrypt(input, iv) {
 
+		// Sanity checks
+		if (!(input instanceof Buffer)) {
+			throw new Error('Input must be Buffer');
+		} else if (input.length === 0) {
+			throw new Error('Input is empty');
+		}
+		if (iv) {
+			if (!(iv instanceof Buffer)) {
+				throw new Error('iv must be Buffer');
+			} else if (iv.length !== 32) {
+				throw new Error('iv must be 32 bytes');
+			}
+		}
+
 		// Allocate output space
 		let roundedSize = input.length + (256 - (input.length % 256));
 		let totalSize = roundedSize + 32;
@@ -65,6 +79,13 @@ module.exports = {
 	 * returns:  cleartext Buffer
 	 */
 	decrypt(input) {
+
+		// Sanity checks
+		if (!(input instanceof Buffer)) {
+			throw new Error('Input must be Buffer');
+		} else if (input.length < 288 || (input.length - 32) % 256 !== 0) {
+			throw new Error('Invalid input length');
+		}
 
 		// Allocate space for decrypted payload
 		let output8 = new Uint8Array(input.slice(32));
