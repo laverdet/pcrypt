@@ -8,8 +8,8 @@ function rotl8(val, bits) {
 
 function cipher8FromIV(iv) {
 	let cipher8 = new Uint8Array(256);
-	for (let ii = 0; ii < 8; ii++) {
-		for (let jj = 0; jj < 32; jj++) {
+	for (let ii = 0; ii < 8; ++ii) {
+		for (let jj = 0; jj < 32; ++jj) {
 			cipher8[32 * ii + jj] = rotl8(iv[jj], ii);
 		}
 	}
@@ -51,7 +51,7 @@ module.exports = {
 
 		// Encrypt in chunks of 256 bytes
 		for (let offset = 32; offset < totalSize; offset += 256) {
-			for (let ii = 0; ii < 64; ii++) {
+			for (let ii = 0; ii < 64; ++ii) {
 				output32[offset / 4 + ii] ^= cipher32[ii];
 			}
 			shuffle(new Int32Array(outputBuffer, offset, 64));
@@ -72,18 +72,16 @@ module.exports = {
 		let output32 = new Int32Array(outputBuffer);
 
 		// Initialize cipher
-		let cipher8 = cipher8FromIV(input.slice(0, 32));
-		let cipher32 = new Int32Array(cipher8.buffer);
+		let cipher32 = new Int32Array(cipher8FromIV(input.slice(0, 32)).buffer);
 		
 		// Decrypt in chunks of 256 bytes
 		for (let offset = 0; offset < output8.length; offset += 256) {
 			let tmp = output8.slice(offset, offset + 256);
 			unshuffle(new Int32Array(outputBuffer, offset, 64));
-			for (let ii = 0; ii < 64; ii++) {
+			for (let ii = 0; ii < 64; ++ii) {
 				output32[offset / 4 + ii] ^= cipher32[ii];
 			}
-			cipher8 = tmp;
-			cipher32 = new Int32Array(cipher8.buffer);
+			cipher32 = new Int32Array(tmp.buffer);
 		}
 		return new Buffer(outputBuffer, 0, output8.length - output8[output8.length - 1]);
 	}
