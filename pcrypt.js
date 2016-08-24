@@ -47,7 +47,7 @@ module.exports = {
 
 		// Write out IV
 		if (!iv) {
-			iv = Buffer.allocUnsafe(32);
+			iv = Buffer.allocUnsafe ? Buffer.allocUnsafe(32) : new Buffer(32);
 			for (let ii = 0; ii < iv.length; ++ii) {
 				iv[ii] = Math.random() * Math.pow(2, 8);
 			}
@@ -71,7 +71,7 @@ module.exports = {
 			shuffle(new Int32Array(outputBuffer, offset, 64));
 			cipher8.set(output8.subarray(offset, offset + 256));
 		}
-		return Buffer.from(outputBuffer);
+		return new Buffer(outputBuffer);
 	},
 
 	/**
@@ -104,6 +104,6 @@ module.exports = {
 			}
 			cipher32 = new Int32Array(tmp.buffer);
 		}
-		return new Buffer(outputBuffer, 0, output8.length - output8[output8.length - 1]);
+		return new Buffer(outputBuffer).slice(0, output8.length - output8[output8.length - 1]);
 	}
 };
