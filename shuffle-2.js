@@ -1,5 +1,5 @@
 "use strict";
-module.exports.shuffle = function(vector) {
+module.exports = function(vector) {
     var tmp = new Int32Array(193);
     tmp[0] = vector[7] ^ vector[15];
     tmp[1] = ~vector[7];
