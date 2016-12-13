@@ -109,7 +109,7 @@ module.exports = {
 		let rand = new Random(ms);
 		let cipher8 = cipher8FromRand(rand);
 		let cipher32 = new Int32Array(cipher8.buffer);
-		output8[totalSize - 1] = makeIntegrityByte(rand.random());
+		output8[totalSize - 1] = makeIntegrityByte2(rand.random());
 
 		// Encrypt in chunks of 256 bytes
 		for (let offset = 4; offset < totalSize - 1; offset += 256) {
