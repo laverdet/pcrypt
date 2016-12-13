@@ -47,9 +47,12 @@ function cipher8FromRand(rand) {
 	return cipher8;
 }
 
-function makeIntegrityByte(byte) {
-	let tmp = (byte ^ 0x0c) & byte;
-	return ((~tmp & 0x67) | (tmp & 0x98)) ^ 0x6f | (tmp & 0x08);
+function makeIntegrityByte1(byte) {
+	return byte & 0xe3 | 0x08;
+}
+
+function makeIntegrityByte2(byte) {
+	return byte & 0xe3 | 0x10;
 }
 
 class Random {
@@ -159,7 +162,11 @@ module.exports = {
 			let ms = input.readUInt32BE(0);
 			let rand = new Random(ms);
 			cipher32 = new Int32Array(cipher8FromRand(rand).buffer);
-			if (input[input.length - 1] !== makeIntegrityByte(rand.random())) {
+			let byte = rand.random();
+			if (
+				input[input.length - 1] !== makeIntegrityByte1(byte) &&
+				input[input.length - 1] !== makeIntegrityByte2(byte)
+			) {
 				throw new Error('Integrity check failed');
 			}
 		}
