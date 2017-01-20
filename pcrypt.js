@@ -70,11 +70,10 @@ module.exports = {
 	/**
 	 * input:    cleartext Buffer
 	 * ms:       Number; optional; seed for IV
+	 * version:  Number; version of encryption.. default is `3`, `2` is also supported.
 	 * returns:  encrypted Buffer
-	 *
-	 * note: This is "version 3". Encryption of previous versions is no longer supported.
 	 */
-	encrypt(input, ms) {
+	encrypt(input, ms, version) {
 
 		// Sanity checks
 		if (!(input instanceof Buffer)) {
@@ -109,7 +108,11 @@ module.exports = {
 		let rand = new Random(ms);
 		let cipher8 = cipher8FromRand(rand);
 		let cipher32 = new Int32Array(cipher8.buffer);
-		output8[totalSize - 1] = makeIntegrityByte2(rand.random());
+		if (version === 2) {
+			output8[totalSize - 1] = makeIntegrityByte1(rand.random());
+		} else {
+			output8[totalSize - 1] = makeIntegrityByte2(rand.random());
+		}
 
 		// Encrypt in chunks of 256 bytes
 		for (let offset = 4; offset < totalSize - 1; offset += 256) {
