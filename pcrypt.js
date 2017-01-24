@@ -48,7 +48,7 @@ function cipher8FromRand(rand) {
 }
 
 function makeIntegrityByte1(byte) {
-	return byte & 0xe3 | 0x08;
+	return byte & 0xf3 | 0x08;
 }
 
 function makeIntegrityByte2(byte) {
