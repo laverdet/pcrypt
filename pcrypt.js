@@ -3,6 +3,26 @@ let shuffle2 = require('./shuffle-2');
 let unshuffle = require('./unshuffle');
 let unshuffle2 = require('./unshuffle-2');
 
+let shuffle3, unshuffle3;
+{
+	let twofish = require('twofish/src/twofish').twofish();
+	let key = [
+		0x4f, 0xeb, 0x1c, 0xa5, 0xf6, 0x1a, 0x67, 0xce,
+		0x43, 0xf3, 0xf0, 0x0c, 0xb1, 0x23, 0x88, 0x35,
+		0xe9, 0x8b, 0xe8, 0x39, 0xd8, 0x89, 0x8f, 0x5a,
+		0x3b, 0x51, 0x2e, 0xa9, 0x47, 0x38, 0xc4, 0x14,
+	];
+	let fns = [ twofish.encrypt, twofish.decrypt ].map(function(fn) {
+		return function(vector) {
+			let vector8 = new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength);
+			let output = fn(key, vector8);
+			vector8.set(output);
+		};
+	});
+	shuffle3 = fns[0];
+	unshuffle3 = fns[1];
+}
+
 function rotl8(val, bits) {
 	return ((val << bits) | (val >> (8 - bits))) & 0xff;
 }
@@ -55,6 +75,10 @@ function makeIntegrityByte2(byte) {
 	return byte & 0xe3 | 0x10;
 }
 
+function makeIntegrityByte3() {
+	return 0x21;
+}
+
 class Random {
 	constructor(seed) {
 		this.state = seed;
@@ -70,7 +94,7 @@ module.exports = {
 	/**
 	 * input:    cleartext Buffer
 	 * ms:       Number; optional; seed for IV
-	 * version:  Number; version of encryption.. default is `3`, `2` is also supported.
+	 * version:  Number; version of encryption.. default is `4`; `2` & `3` are also supported.
 	 * returns:  encrypted Buffer
 	 */
 	encrypt(input, ms, version) {
@@ -108,19 +132,25 @@ module.exports = {
 		let rand = new Random(ms);
 		let cipher8 = cipher8FromRand(rand);
 		let cipher32 = new Int32Array(cipher8.buffer);
+		let shuffleFn = shuffle2;
+		let blockSize = 256;
 		if (version === 2) {
 			output8[totalSize - 1] = makeIntegrityByte1(rand.random());
-		} else {
+		} else if (version === 3) {
 			output8[totalSize - 1] = makeIntegrityByte2(rand.random());
+		} else {
+			shuffleFn = shuffle3;
+			blockSize = 16;
+			output8[totalSize - 1] = makeIntegrityByte3();
 		}
 
 		// Encrypt in chunks of 256 bytes
-		for (let offset = 4; offset < totalSize - 1; offset += 256) {
-			for (let ii = 0; ii < 64; ++ii) {
+		for (let offset = 4; offset < totalSize - 1; offset += blockSize) {
+			for (let ii = 0; ii < blockSize / 4; ++ii) {
 				output32[offset / 4 + ii] ^= cipher32[ii];
 			}
-			shuffle2(new Int32Array(outputBuffer, offset, 64));
-			cipher8.set(output8.subarray(offset, offset + 256));
+			shuffleFn(new Int32Array(outputBuffer, offset, blockSize / 4));
+			cipher8.set(output8.subarray(offset, offset + blockSize));
 		}
 
 		return new Buffer(outputBuffer).slice(0, totalSize);
@@ -153,35 +183,44 @@ module.exports = {
 
 		// Get cipher and encrypted blocks
 		let output8, cipher32;
+		let blockSize = 256;
+		let unshuffleFn;
 		if (version === 1) {
 			output8 = new Uint8Array(input.slice(32));
 			cipher32 = new Int32Array(cipher8FromIV(input.slice(0, 32)).buffer);
+			unshuffleFn = unshuffle;
 		} else if (version === 2) {
 			output8 = new Uint8Array(input.slice(32, input.length - 1));
 			cipher32 = new Int32Array(cipher8FromIV(input.slice(0, 32)).buffer);
+			unshuffleFn = unshuffle2;
 			// input[input.length - 1] is unchecked integrity byte
 		} else {
 			output8 = new Uint8Array(input.slice(4, input.length - 1));
 			let ms = input.readUInt32BE(0);
 			let rand = new Random(ms);
 			cipher32 = new Int32Array(cipher8FromRand(rand).buffer);
-			let byte = rand.random();
-			if (
-				input[input.length - 1] !== makeIntegrityByte1(byte) &&
-				input[input.length - 1] !== makeIntegrityByte2(byte)
-			) {
-				throw new Error('Integrity check failed');
+			if (input[input.length - 1] === 0x21) {
+				unshuffleFn = unshuffle3;
+				blockSize = 16;
+			} else {
+				let byte = rand.random();
+				unshuffleFn = unshuffle2;
+				if (
+					input[input.length - 1] !== makeIntegrityByte1(byte) &&
+					input[input.length - 1] !== makeIntegrityByte2(byte)
+				) {
+					throw new Error('Integrity check failed');
+				}
 			}
 		}
 		let outputBuffer = output8.buffer;
 		let output32 = new Int32Array(outputBuffer);
 		
-		// Decrypt in chunks of 256 bytes
-		let unshuffleFn = version === 1 ? unshuffle : unshuffle2;
-		for (let offset = 0; offset < output8.length; offset += 256) {
-			let tmp = output8.slice(offset, offset + 256);
-			unshuffleFn(new Int32Array(outputBuffer, offset, 64));
-			for (let ii = 0; ii < 64; ++ii) {
+		// Decrypt in chunks of 16 or 256 bytes
+		for (let offset = 0; offset < output8.length; offset += blockSize) {
+			let tmp = output8.slice(offset, offset + blockSize);
+			unshuffleFn(new Int32Array(outputBuffer, offset, blockSize / 4));
+			for (let ii = 0; ii < blockSize / 4; ++ii) {
 				output32[offset / 4 + ii] ^= cipher32[ii];
 			}
 			cipher32 = new Int32Array(tmp.buffer);
